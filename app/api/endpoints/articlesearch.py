@@ -10,20 +10,34 @@ router = APIRouter()
 async def article_search(
     q: str = Query(..., description="Search query term"),
     begin_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
-    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)")
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
+    sort: Optional[str] = Query("relevance", description="Sort order: relevance, newest, oldest"),
+    filter_query: Optional[str] = Query(None, description="Filter query (fq parameter)")
 ):
     """
-    Search for New York Times articles based on query terms and optional date range.
+    Search for New York Times articles based on query terms and optional filters.
     
     - **q**: Required search term
     - **begin_date**: Optional start date in YYYY-MM-DD format
     - **end_date**: Optional end date in YYYY-MM-DD format
+    - **sort**: Sort order (relevance, newest, oldest)
+    - **filter_query**: Advanced filter query using NYT syntax
+    
+    Examples of filter_query:
+    - section_name:("Business")
+    - news_desk:("Sports" "Foreign")
+    - document_type:("article") AND section_name:("Business")
     
     Returns articles matching the search criteria.
     """
     try:
-
-        data = await search_articles(q, begin_date, end_date)
+        data = await search_articles(
+            q, 
+            begin_date, 
+            end_date,
+            sort=sort,
+            filter_query=filter_query
+        )
         articles = []
         
         for doc in data.get("response", {}).get("docs", []):
