@@ -1,6 +1,6 @@
 import httpx
 from app.core.config import settings
-from typing import Dict, Any, List
+from typing import Dict, Any
 from datetime import date
 
 async def fetch_top_stories(section: str) -> Dict[str, Any]:

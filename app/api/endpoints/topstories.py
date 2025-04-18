@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException
 from app.models.topstories import TopStoriesResponse, TopStoryArticle
 from app.services.nyt_api import fetch_top_stories
 import asyncio
