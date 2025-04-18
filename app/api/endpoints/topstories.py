@@ -22,19 +22,14 @@ async def get_top_stories():
     sections = ["arts", "food", "movies", "travel", "science"]
     result = {}
     
-    # Start timing total fetching process
     total_fetch_start = time.time()
     
-    # Create tasks for concurrent execution
     fetch_tasks = {section: fetch_top_stories(section) for section in sections}
     
-    # Execute all API calls concurrently
     try:
-        # Wait for all tasks to complete
         fetch_results = await asyncio.gather(*fetch_tasks.values(), return_exceptions=True)
         section_fetch_times = {}
         
-        # Process results
         for section, data in zip(sections, fetch_results):
             section_end = time.time()
             section_fetch_times[section] = section_end - total_fetch_start
@@ -45,7 +40,6 @@ async def get_top_stories():
             
             articles = data.get("results", [])
             
-            # Take the two most recent articles
             section_articles = []
             for article in articles[:2]:
                 section_articles.append(
@@ -63,15 +57,12 @@ async def get_top_stories():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching stories: {str(e)}")
     
-    # End timing total fetch process
     total_fetch_end = time.time()
     
-    # Time the response preparation
     response_prep_start = time.time()
     response = TopStoriesResponse(**result)
     response_prep_end = time.time()
     
-    # Print timing information
     print("\n--- Timing Information ---")
     print(f"Raw API fetch times:")
     for section, fetch_time in section_fetch_times.items():

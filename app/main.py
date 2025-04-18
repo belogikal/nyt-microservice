@@ -8,7 +8,6 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Include routers
 app.include_router(topstories.router, prefix="/nytimes", tags=["nytimes"])
 app.include_router(articlesearch.router, prefix="/nytimes", tags=["nytimes"])
 
