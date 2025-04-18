@@ -28,9 +28,10 @@ async def get_top_stories():
         
         for section, data in zip(sections, fetch_results):
             if isinstance(data, Exception):
-                raise HTTPException(status_code=500, 
-                                   detail=f"Error fetching {section} stories: {str(data)}")
-            
+                # Handle API exceptions - create placeholder articles
+                result[section] = create_placeholder_articles(section, 2)
+                continue
+                
             articles = data.get("results", [])
             
             # Filter out invalid articles
@@ -43,13 +44,15 @@ async def get_top_stories():
                     article.get("published_date")):
                     valid_articles.append(article)
             
-            # Sort by published_date to get the most recent
-            valid_articles.sort(
-                key=lambda x: datetime.fromisoformat(x["published_date"].replace("Z", "+00:00")), 
-                reverse=True
-            )
+            try:
+                valid_articles.sort(
+                    key=lambda x: datetime.fromisoformat(x["published_date"].replace("Z", "+00:00")), 
+                    reverse=True
+                )
+            except (ValueError, TypeError):
+                # If date parsing fails, don't crash
+                pass
             
-            # Take the two most recent valid articles
             section_articles = []
             for article in valid_articles[:2]:
                 section_articles.append(
@@ -62,24 +65,32 @@ async def get_top_stories():
                     )
                 )
             
-            # Handle the case where a section doesn't have enough valid articles
             if len(section_articles) < 2:
-                # Add placeholder articles if needed for the response model
-                while len(section_articles) < 2:
-                    section_articles.append(
-                        TopStoryArticle(
-                            title=f"No recent {section} story available",
-                            section=section,
-                            url="",
-                            abstract="No recent content available for this section.",
-                            published_date=datetime.now().isoformat()
-                        )
-                    )
+                placeholders = create_placeholder_articles(section, 2 - len(section_articles))
+                section_articles.extend(placeholders)
             
             result[section] = section_articles
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching stories: {str(e)}")
+        # If something catastrophic happens, still provide a valid response
+        for section in sections:
+            if section not in result:
+                result[section] = create_placeholder_articles(section, 2)
     
     response = TopStoriesResponse(**result)
     return response
+
+def create_placeholder_articles(section, count):
+    """Helper function to create placeholder articles"""
+    articles = []
+    for _ in range(count):
+        articles.append(
+            TopStoryArticle(
+                title=f"No recent {section} story available",
+                section=section,
+                url="",
+                abstract="No recent content available for this section.",
+                published_date=datetime.now().isoformat()
+            )
+        )
+    return articles
