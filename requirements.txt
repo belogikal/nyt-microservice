@@ -77,3 +77,4 @@ virtualenv==20.29.3
 wcwidth==0.2.13
 whitenoise==6.9.0
 yarl==1.18.3
+pydantic-settings==2.9.0
