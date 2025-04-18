@@ -1,9 +1,8 @@
 from fastapi import APIRouter, HTTPException, Path
 from app.models.topstories import TopStoriesResponse, TopStoryArticle
 from app.services.nyt_api import fetch_top_stories
-from typing import List
-import time
 import asyncio
+from datetime import datetime
 
 router = APIRouter()
 
@@ -22,26 +21,37 @@ async def get_top_stories():
     sections = ["arts", "food", "movies", "travel", "science"]
     result = {}
     
-    total_fetch_start = time.time()
-    
     fetch_tasks = {section: fetch_top_stories(section) for section in sections}
     
     try:
         fetch_results = await asyncio.gather(*fetch_tasks.values(), return_exceptions=True)
-        section_fetch_times = {}
         
         for section, data in zip(sections, fetch_results):
-            section_end = time.time()
-            section_fetch_times[section] = section_end - total_fetch_start
-            
             if isinstance(data, Exception):
                 raise HTTPException(status_code=500, 
                                    detail=f"Error fetching {section} stories: {str(data)}")
             
             articles = data.get("results", [])
             
+            # Filter out invalid articles
+            valid_articles = []
+            for article in articles:
+                # Check that required fields have data
+                if (article.get("title") and 
+                    article.get("url") and 
+                    article.get("abstract") and 
+                    article.get("published_date")):
+                    valid_articles.append(article)
+            
+            # Sort by published_date to get the most recent
+            valid_articles.sort(
+                key=lambda x: datetime.fromisoformat(x["published_date"].replace("Z", "+00:00")), 
+                reverse=True
+            )
+            
+            # Take the two most recent valid articles
             section_articles = []
-            for article in articles[:2]:
+            for article in valid_articles[:2]:
                 section_articles.append(
                     TopStoryArticle(
                         title=article.get("title", ""),
@@ -52,24 +62,24 @@ async def get_top_stories():
                     )
                 )
             
+            # Handle the case where a section doesn't have enough valid articles
+            if len(section_articles) < 2:
+                # Add placeholder articles if needed for the response model
+                while len(section_articles) < 2:
+                    section_articles.append(
+                        TopStoryArticle(
+                            title=f"No recent {section} story available",
+                            section=section,
+                            url="",
+                            abstract="No recent content available for this section.",
+                            published_date=datetime.now().isoformat()
+                        )
+                    )
+            
             result[section] = section_articles
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching stories: {str(e)}")
     
-    total_fetch_end = time.time()
-    
-    response_prep_start = time.time()
     response = TopStoriesResponse(**result)
-    response_prep_end = time.time()
-    
-    print("\n--- Timing Information ---")
-    print(f"Raw API fetch times:")
-    for section, fetch_time in section_fetch_times.items():
-        print(f"  - {section}: {fetch_time:.4f} seconds")
-    print(f"Total time for all API fetches: {total_fetch_end - total_fetch_start:.4f} seconds")
-    print(f"Response preparation time: {response_prep_end - response_prep_start:.4f} seconds")
-    print(f"Total endpoint execution time: {response_prep_end - total_fetch_start:.4f} seconds")
-    print("-------------------------\n")
-    
     return response
